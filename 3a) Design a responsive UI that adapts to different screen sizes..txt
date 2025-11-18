@@ -1,0 +1,20 @@
+import 'package:flutter/material.dart';
+
+//main function
+void main() {
+  runApp(MyApp()); //leets change it
+}
+
+//stateless widget class
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: MaterialApp(
+        home: Text('AIML'),
+      ),
+    );
+  }
+}
