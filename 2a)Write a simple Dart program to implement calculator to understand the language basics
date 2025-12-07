@@ -1,0 +1,290 @@
+import 'package:flutter/material.dart';
+
+void main() {
+  runApp(const CalculatorApp());
+}
+
+class CalculatorApp extends StatelessWidget {
+  const CalculatorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Standalone Calculator',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: const CalculatorScreen(),
+    );
+  }
+}
+
+class CalculatorScreen extends StatefulWidget {
+  const CalculatorScreen({super.key});
+
+  @override
+  State<CalculatorScreen> createState() => _CalculatorScreenState();
+}
+
+class _CalculatorScreenState extends State<CalculatorScreen> {
+  var userQuestion = '';
+  var userAnswer = '';
+
+  // Button layout
+  final List<String> buttons = [
+    'C', 'DEL', '%', '/',
+    '7', '8', '9', 'x',
+    '4', '5', '6', '-',
+    '1', '2', '3', '+',
+    '0', '.', '=', '', 
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[200],
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            // Output Display
+            Expanded(
+              flex: 1,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                alignment: Alignment.centerRight,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      userQuestion,
+                      style: const TextStyle(fontSize: 30, color: Colors.black54),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      userAnswer,
+                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Buttons Grid
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: GridView.builder(
+                  itemCount: buttons.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    childAspectRatio: 1.1,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemBuilder: (BuildContext context, int index) {
+                    // Logic to handle specific buttons
+                    if (index == 0) { // C button
+                      return MyButton(
+                        text: buttons[index],
+                        color: Colors.greenAccent.shade100,
+                        textColor: Colors.green.shade800,
+                        onTap: () => setState(() {
+                          userQuestion = '';
+                          userAnswer = '';
+                        }),
+                      );
+                    } else if (index == 1) { // DEL button
+                      return MyButton(
+                        text: buttons[index],
+                        color: Colors.redAccent.shade100,
+                        textColor: Colors.red.shade900,
+                        onTap: () => setState(() {
+                          if (userQuestion.isNotEmpty) {
+                            userQuestion = userQuestion.substring(0, userQuestion.length - 1);
+                          }
+                        }),
+                      );
+                    } else if (buttons[index] == '=') { // Equals button
+                      return MyButton(
+                        text: buttons[index],
+                        color: Colors.blue,
+                        textColor: Colors.white,
+                        onTap: () => setState(() {
+                          calculateResult();
+                        }),
+                      );
+                    } else { // Normal buttons
+                      return MyButton(
+                        text: buttons[index],
+                        color: isOperator(buttons[index]) 
+                            ? Colors.grey.shade200 
+                            : Colors.white,
+                        textColor: isOperator(buttons[index]) 
+                            ? Colors.blue 
+                            : Colors.black,
+                        onTap: () => setState(() {
+                          if (buttons[index].isNotEmpty) {
+                             userQuestion += buttons[index];
+                          }
+                        }),
+                      );
+                    }
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool isOperator(String x) {
+    return (x == '%' || x == '/' || x == 'x' || x == '-' || x == '+' || x == '=');
+  }
+
+  // --- MANUAL CALCULATION LOGIC (No Dependencies) ---
+  void calculateResult() {
+    try {
+      // 1. Prepare string: replace 'x' with '*' for logic
+      String finalInput = userQuestion.replaceAll('x', '*');
+      
+      // 2. Parse numbers and operators
+      List<double> numbers = [];
+      List<String> operators = [];
+      
+      String currentNumber = '';
+      
+      for (int i = 0; i < finalInput.length; i++) {
+        String char = finalInput[i];
+        
+        if ('+-*/%'.contains(char)) {
+           if (currentNumber.isEmpty && char == '-') {
+             // Handle negative numbers at start (e.g. -5 + 2)
+             currentNumber += char;
+           } else {
+             numbers.add(double.parse(currentNumber));
+             operators.add(char);
+             currentNumber = '';
+           }
+        } else {
+          currentNumber += char;
+        }
+      }
+      // Add the last number
+      if (currentNumber.isNotEmpty) {
+        numbers.add(double.parse(currentNumber));
+      }
+
+      // 3. Handle Order of Operations: Multiply and Divide first
+      int i = 0;
+      while (i < operators.length) {
+        if (operators[i] == '*' || operators[i] == '/' || operators[i] == '%') {
+          double num1 = numbers[i];
+          double num2 = numbers[i+1];
+          double result = 0;
+
+          if (operators[i] == '*') result = num1 * num2;
+          if (operators[i] == '/') result = num1 / num2;
+          if (operators[i] == '%') result = num1 % num2;
+
+          // Replace the two numbers with the result
+          numbers[i] = result;
+          numbers.removeAt(i + 1);
+          // Remove the used operator
+          operators.removeAt(i);
+          // Don't increment i, because the next operator is now at current index
+        } else {
+          i++;
+        }
+      }
+
+      // 4. Handle Addition and Subtraction
+      i = 0;
+      while (i < operators.length) {
+        double num1 = numbers[i];
+        double num2 = numbers[i+1];
+        double result = 0;
+
+        if (operators[i] == '+') result = num1 + num2;
+        if (operators[i] == '-') result = num1 - num2;
+
+        numbers[i] = result;
+        numbers.removeAt(i + 1);
+        operators.removeAt(i);
+      }
+
+      // 5. Final Answer
+      setState(() {
+        // If whole number, remove .0 (e.g., 5.0 -> 5)
+        if (numbers[0] % 1 == 0) {
+           userAnswer = numbers[0].toInt().toString();
+        } else {
+           userAnswer = numbers[0].toString();
+        }
+      });
+      
+    } catch (e) {
+      setState(() {
+        userAnswer = 'Error';
+      });
+    }
+  }
+}
+
+// Reusable Button Widget
+class MyButton extends StatelessWidget {
+  final String text;
+  final Color? color;
+  final Color? textColor;
+  final VoidCallback onTap;
+
+  const MyButton({
+    super.key,
+    required this.text,
+    required this.color,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.isEmpty) return const SizedBox.shrink();
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+             BoxShadow(
+               color: Colors.grey.withOpacity(0.1),
+               spreadRadius: 1,
+               blurRadius: 2,
+               offset: const Offset(0, 1),
+             ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
